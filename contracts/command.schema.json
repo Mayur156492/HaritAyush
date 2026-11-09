@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HaritAyush Command Contract",
+  "description": "INITIAL CONTRACT PLACEHOLDER. Defines the shared representation of a command approved for delivery to an enrolled device or workload. This file intentionally declares no properties, required fields or enumerations: the command contract is to be designed and approved during backend architecture work, and must not describe unrestricted remote shell execution.",
+
+  "$comment": "Placeholder only. Do not treat this schema as an approved contract or as an API payload definition.",
+  "type": "object"
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HaritAyush Telemetry Contract",
+  "description": "INITIAL CONTRACT PLACEHOLDER. Defines the shared representation of hardware telemetry samples reported by the local agent. This file intentionally declares no properties, required fields or enumerations: the telemetry contract, including how unsupported or unavailable sensor readings are represented, is to be designed and approved during backend architecture work.",
+
+  "$comment": "Placeholder only. Do not treat this schema as an approved contract or as an API payload definition.",
+  "type": "object"
+}

@@ -1,0 +1,128 @@
+name: CI
+
+# Scaffold-level checks only: JSON contract syntax, Python syntax/import checks
+# and the frontend type-check build. No deployment, publishing, model training
+# or credentialed steps are part of this workflow.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contracts (JSON syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate contract JSON syntax
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          schemas = sorted(pathlib.Path("contracts").glob("*.json"))
+          if not schemas:
+              sys.exit("No contract schemas found in contracts/")
+          for schema in schemas:
+              with schema.open(encoding="utf-8") as handle:
+                  json.load(handle)
+              print(f"valid JSON: {schema}")
+          PY
+
+  backend:
+    name: Backend (install, compile, health handler)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/backend/pyproject.toml
+
+      - name: Install backend package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+
+      - name: Byte-compile backend modules
+        run: python -m compileall -q app
+
+      - name: Verify application import and health handler
+        run: |
+          python - <<'PY'
+          from app.main import app, health_check
+
+          registered = {route.path for route in app.routes}
+          assert "/health" in registered, f"/health not registered: {sorted(registered)}"
+          assert health_check() == {"status": "ok", "service": "haritayush-backend"}
+          print("backend import and health handler OK")
+          PY
+
+  local-agent:
+    name: Local agent (install and import)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/local-agent
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install local agent package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+
+      - name: Byte-compile agent modules
+        run: python -m compileall -q haritayush_agent
+
+      - name: Verify package import
+        run: |
+          python -c "import haritayush_agent; print('local agent version', haritayush_agent.__version__)"
+
+  frontend:
+    name: Frontend (type-check and build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build

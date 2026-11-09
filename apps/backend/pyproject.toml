@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "haritayush-backend"
+version = "0.1.0"
+description = "HaritAyush backend API: device telemetry, temperature forecasting, thermal risk, workload placement and sustainability services (scaffold)."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn>=0.30,<1.0",
+    "pydantic>=2.7,<3.0",
+    "sqlalchemy>=2.0,<3.0",
+    "pandas>=2.2,<3.0",
+    "numpy>=1.26,<3.0",
+    "statsmodels>=0.14,<1.0",
+    "xgboost>=2.0,<3.0",
+    "scikit-learn>=1.4,<2.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

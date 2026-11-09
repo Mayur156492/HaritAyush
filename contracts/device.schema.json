@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HaritAyush Device Contract",
+  "description": "INITIAL CONTRACT PLACEHOLDER. Defines the shared representation of a computing device enrolled in HaritAyush. This file intentionally declares no properties, required fields or enumerations: the device contract is to be designed and approved during backend architecture work, in coordination with the Windows local agent.",
+
+  "$comment": "Placeholder only. Do not treat this schema as an approved contract or as an API payload definition.",
+  "type": "object"
+}

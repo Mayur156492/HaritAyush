@@ -1,0 +1,19 @@
+# HaritAyush container foundation (scaffold).
+#
+# Service definitions are intentionally deferred. There is currently nothing
+# runnable to containerise: the backend exposes only a health check, the
+# frontend serves a single placeholder page, and the local agent is a Windows
+# package with no implemented behaviour and no approved communication contract
+# to configure against.
+#
+# Services will be added only when they can actually start, be configured and be
+# verified. Expected additions, in order:
+#   1. backend   - FastAPI API service, once API routes exist.
+#   2. frontend  - built static assets served for the dashboard.
+#   3. database  - once the persistence design and migrations are approved.
+# The local agent is expected to run on enrolled Windows hosts rather than in a
+# container; that deployment decision is still open and is not assumed here.
+
+name: haritayush
+
+services: {}

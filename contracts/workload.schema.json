@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HaritAyush Workload Contract",
+  "description": "INITIAL CONTRACT PLACEHOLDER. Defines the shared representation of a workload that may be placed on, checkpointed on or migrated between enrolled devices. This file intentionally declares no properties, required fields or enumerations: the workload contract is to be designed and approved during backend architecture work, together with the local agent's workload and checkpoint interfaces.",
+
+  "$comment": "Placeholder only. Do not treat this schema as an approved contract or as an API payload definition.",
+  "type": "object"
+}

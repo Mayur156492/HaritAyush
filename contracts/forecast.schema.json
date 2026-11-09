@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HaritAyush Forecast Contract",
+  "description": "INITIAL CONTRACT PLACEHOLDER. Defines the shared representation of a hardware temperature forecast and its supporting metadata. This file intentionally declares no properties, required fields or enumerations: the forecast contract is to be designed and approved during backend architecture work, together with the forecasting model interfaces.",
+
+  "$comment": "Placeholder only. Do not treat this schema as an approved contract or as an API payload definition.",
+  "type": "object"
+}

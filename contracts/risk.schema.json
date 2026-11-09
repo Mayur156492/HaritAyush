@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HaritAyush Thermal Risk Contract",
+  "description": "INITIAL CONTRACT PLACEHOLDER. Defines the shared representation of a thermal risk assessment produced from a forecast. This file intentionally declares no properties, required fields or enumerations: risk levels, thresholds and their justification are to be designed and approved during backend architecture work.",
+
+  "$comment": "Placeholder only. Do not treat this schema as an approved contract or as an API payload definition.",
+  "type": "object"
+}
