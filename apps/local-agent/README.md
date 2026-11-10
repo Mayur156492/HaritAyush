@@ -9,9 +9,11 @@ Use Python 3.11 or newer on Windows. From this directory in PowerShell:
 ```powershell
 .\scripts\install.ps1
 $env:HARITAYUSH_BACKEND_URL = "http://127.0.0.1:8000"
-.\.venv\Scripts\haritayush-agent.exe --check
+.\.venv\Scripts\haritayush-agent.exe preflight
 .\scripts\run.ps1
 ```
+
+Preflight checks administrator access, a real LHM/OHM CPU temperature, CPU/memory readings, backend health and reading upload, a harmless child-process Job Object cap, and the local stop-file directory. See [WINDOWS_RUNBOOK.md](WINDOWS_RUNBOOK.md) for exact setup steps. Preflight sends one real reading to the configured backend.
 
 For another backend machine, set `HARITAYUSH_BACKEND_URL` to its reachable URL. The prototype API has no authentication; keep an HTTP deployment on a trusted network. `https://` URLs are supported by the standard library client.
 

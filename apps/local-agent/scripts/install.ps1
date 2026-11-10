@@ -18,4 +18,4 @@ if ($LASTEXITCODE -ne 0) { throw "Could not update pip." }
 & .\.venv\Scripts\python.exe -m pip install .
 if ($LASTEXITCODE -ne 0) { throw "Could not install HaritAyush agent dependencies." }
 
-Write-Host "Installed. Configure HARITAYUSH_BACKEND_URL, then run: .\.venv\Scripts\haritayush-agent.exe --check"
+Write-Host "Installed. Configure HARITAYUSH_BACKEND_URL, then run PowerShell as Administrator and use: .\.venv\Scripts\haritayush-agent.exe preflight"

@@ -12,6 +12,7 @@ from haritayush_agent.core.config import Settings
 def main() -> int:
     parser = argparse.ArgumentParser(description="HaritAyush Windows telemetry and safe CPU-cap agent")
     parser.add_argument("--check", action="store_true", help="check dependencies, OS, configuration and sensor visibility")
+    parser.add_argument("preflight", nargs="?", choices=("preflight",), help="run six real Windows readiness checks")
     parser.add_argument("--dev-mock", action="store_true", help="DEV ONLY: use estimated simulated temperature and a state-only demo job")
     parser.add_argument("--dev-allow-estimated-cap", action="store_true",
                         help="TEST ONLY: let the simulated job accept estimated temperature; never enables a real OS cap")
@@ -20,6 +21,9 @@ def main() -> int:
     settings = Settings.from_env()
     if args.dev_allow_estimated_cap and not args.dev_mock:
         parser.error("--dev-allow-estimated-cap requires --dev-mock")
+    if args.preflight == "preflight":
+        from haritayush_agent.preflight import run_preflight
+        return run_preflight(settings)
     if platform.system() != "Windows" and not args.dev_mock:
         print("HaritAyush local agent requires Windows 10/11; telemetry preview is not enabled on other platforms.", file=sys.stderr)
         return 2
