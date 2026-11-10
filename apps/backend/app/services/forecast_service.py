@@ -10,14 +10,16 @@ from sqlalchemy import select
 from app.database import session_factory
 from app.models import Reading, Forecast
 from app.intelligence.forecasting.baseline_model import PersistenceBaselineModel
+from app.intelligence.forecasting.learned_model import LearnedTemperatureModel
 
 
 def get_latest_forecast(site_id: str, reading: Reading | None = None) -> dict:
     """Get or compute the latest temperature forecast for a device.
 
-    Checks the DB first for an existing forecast. If none found, computes
-    using the persistence baseline model (latest observed temperature with
-    simple confidence bands).
+    Checks the DB first for an existing forecast. If none found, tries to fit
+    and predict with the learned model (LearnedTemperatureModel) using historical
+    observations. If historical data is insufficient or sensor readings are unavailable,
+    falls back cleanly to the persistence baseline model.
 
     Returns forecast dict with 5-minute and 15-minute horizons.
     """
@@ -45,17 +47,18 @@ def get_latest_forecast(site_id: str, reading: Reading | None = None) -> dict:
         if "5" in forecast_by_horizon and "15" in forecast_by_horizon:
             return forecast_by_horizon
 
-    # Compute forecast using persistence baseline model
-    model = PersistenceBaselineModel()
+    # Fetch recent readings to attempt learned model fitting
+    with session_factory() as session:
+        history_stmt = (
+            select(Reading)
+            .where(Reading.site_id == site_id)
+            .order_by(Reading.ts.desc(), Reading.id.desc())
+            .limit(100)
+        )
+        history_readings = list(session.execute(history_stmt).scalars().all())
 
-    # If no reading provided, try to get the latest
-    if reading is None:
-        with session_factory() as session:
-            stmt = select(Reading).where(Reading.site_id == site_id).order_by(
-                Reading.ts.desc(), Reading.id.desc()
-            )
-            result = session.execute(stmt)
-            reading = result.scalars().first()
+    if reading is None and history_readings:
+        reading = history_readings[0]
 
     if reading is None:
         # No data available - return low-trust fallback
@@ -65,13 +68,25 @@ def get_latest_forecast(site_id: str, reading: Reading | None = None) -> dict:
             "trust": "low",
         }
 
-    # Fit persistence baseline with observation, timestamp, and sensor status
+    # Attempt learned model forecasting
+    if reading.cpu_temp_c is not None and reading.temp_status == "measured" and len(history_readings) >= 15:
+        learned_model = LearnedTemperatureModel()
+        # History in chronological order for training
+        chronological_history = list(reversed(history_readings))
+        fitted = learned_model.fit(chronological_history)
+        if fitted:
+            prev_reading = history_readings[1] if len(history_readings) > 1 else None
+            learned_pred = learned_model.predict(reading, prev_reading)
+            if learned_pred is not None:
+                return learned_pred
+
+    # Safe fallback to persistence baseline model
+    model = PersistenceBaselineModel()
     model.fit(
         temperature=reading.cpu_temp_c,
         timestamp=reading.ts,
         status=reading.temp_status,
     )
-
     return model.forecast_all()
 
 

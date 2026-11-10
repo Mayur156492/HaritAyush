@@ -17,7 +17,7 @@ from typing import List
 
 from fastapi import APIRouter, Query
 
-from ...schemas import CommandPending
+from ...schemas import CommandPendingResponse, CommandItem
 from ...models import Command
 from ...services.command_service import get_pending_commands
 
@@ -27,26 +27,35 @@ router = APIRouter(tags=["commands"])
 
 @router.get(
     "/pending",
-    response_model=List[CommandPending],
+    response_model=CommandPendingResponse,
     summary="Get pending commands for agent",
     description="Return pending commands that may be delivered to the Windows "
-    "agent.  Only approved cpu_cap commands are delivered.  Presenter commands "
-    "start_job and stop_job are also supported.  A cpu_cap command is only "
-    "delivered after the associated recommendation has been approved by the "
-    "operator.",
+    "agent enclosed in a 'commands' envelope. Handed-out commands are atomically "
+    "marked delivered so subsequent polls do not return duplicates.",
 )
-async def get_pending_commands_endpoint(
+def get_pending_commands_endpoint(
     site_id: str = Query("laptop-01", description="Site/device identifier"),
 ):
-    """Get pending commands for the Windows agent."""
-    commands = get_pending_commands(site_id=site_id)
-    return [
-        CommandPending(
-            action_id=c.action_id,
-            command_type=c.command_type,
-            cap_pct=getattr(c, "cap_pct", None),
-            status=c.status,
-            created_at=c.created_at.isoformat() if hasattr(c.created_at, "isoformat") else str(c.created_at),
+    """Get pending commands for the Windows agent in envelope format."""
+    commands = get_pending_commands(site_id=site_id, mark_as_delivered=True)
+    items = []
+    for c in commands:
+        issued_at_str = c.created_at.isoformat() if hasattr(c.created_at, "isoformat") else str(c.created_at)
+        approved_at_str = (
+            c.approved_at.isoformat()
+            if hasattr(getattr(c, "approved_at", None), "isoformat")
+            else (str(c.approved_at) if getattr(c, "approved_at", None) else None)
         )
-        for c in commands
-    ]
+        items.append(
+            CommandItem(
+                id=c.id,
+                type=c.command_type,
+                issued_at=issued_at_str,
+                status=c.status,
+                action_id=c.action_id,
+                cap_pct=getattr(c, "cap_pct", None),
+                approved_by=getattr(c, "approved_by", None),
+                approved_at=approved_at_str,
+            )
+        )
+    return CommandPendingResponse(commands=items)

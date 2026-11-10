@@ -125,13 +125,32 @@ class ApprovalPayload(BaseModel):
     )
 
 
+class CommandItem(BaseModel):
+    """Single command representation within the envelope."""
+    id: int
+    type: str  # e.g. "cpu_cap", "start_job", "stop_job"
+    issued_at: str
+    status: str = "delivered"
+    action_id: Optional[str] = None
+    cap_pct: Optional[int] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[str] = None
+
+
+class CommandPendingResponse(BaseModel):
+    """Envelope response for GET /commands/pending."""
+    commands: List[CommandItem]
+
+
 class CommandPending(BaseModel):
-    """Representation of a pending command for the agent."""
-    action_id: str
-    command_type: str  # "cpu_cap" | "start_job" | "stop_job"
+    """Legacy/compatibility representation of a pending command."""
+    id: Optional[int] = None
+    action_id: Optional[str] = None
+    command_type: str
     cap_pct: Optional[int] = Field(None, description="CPU cap percentage for cpu_cap")
     status: str = "pending"
     created_at: str
+
 
 
 class AuditRecordCreate(BaseModel):
