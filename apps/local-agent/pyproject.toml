@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "haritayush-local-agent"
 version = "0.1.0"
-description = "HaritAyush Windows 11 local agent: capability discovery, telemetry collection, secure communication, safe workload execution, checkpointing and migration (scaffold)."
+description = "HaritAyush Windows 10/11 local telemetry and safe demo workload agent."
 requires-python = ">=3.11"
-# Intentionally empty in the scaffold: no hardware, telemetry or transport
-# library has been chosen yet. Any dependency introduced later belongs here,
-# inside apps/local-agent, and nowhere else.
-dependencies = []
+dependencies = ["psutil>=5.9,<8"]
+
+[project.scripts]
+haritayush-agent = "haritayush_agent.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["haritayush_agent*"]
