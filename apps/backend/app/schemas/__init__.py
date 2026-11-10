@@ -87,6 +87,10 @@ class ForecastContract(BaseModel):
         None,
         description="Pending recommended action with id, type, cap_pct and status pending",
     )
+    data_mode: str = Field(
+        "live",
+        description="Data source mode: 'live' for real telemetry, 'replay' for saved-file demo",
+    )
 
     model_config = {"validate_by_name": True, "str_strip_whitespace": True}
 

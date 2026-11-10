@@ -1,4 +1,4 @@
-"""Services for HaritAyush backend — reading, forecast, verification, risk, explanation, action, command and audit."""
+"""Services for HaritAyush backend — reading, forecast, verification, risk, explanation, action, command, audit and replay."""
 
 from __future__ import annotations
 
@@ -10,3 +10,5 @@ from app.services import explanation_service  # noqa: F401
 from app.services import action_service  # noqa: F401
 from app.services import command_service  # noqa: F401
 from app.services import audit_service  # noqa: F401
+from app.services import replay_state  # noqa: F401
+from app.services import replay_service  # noqa: F401

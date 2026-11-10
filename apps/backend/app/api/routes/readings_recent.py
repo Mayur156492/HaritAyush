@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, HTTPException
 from ...schemas import ReadingRecent, RecentReadingsResponse
 from ...models import Reading
 from ...services.reading_service import get_recent_readings
+from ...services import replay_state, replay_service
 
 
 router = APIRouter(tags=["telemetry"])
@@ -24,7 +25,10 @@ async def get_recent_readings_endpoint(
     site_id: str = Query("laptop-01", description="Site/device identifier"),
 ):
     """Get recent readings for a device."""
-    readings = get_recent_readings(site_id=site_id, n=n)
+    if replay_state.is_replay_enabled():
+        readings = replay_service.get_replay_history(site_id=site_id, n=n)
+    else:
+        readings = get_recent_readings(site_id=site_id, n=n)
     return RecentReadingsResponse(
         site_id=site_id,
         n=len(readings),

@@ -8,7 +8,9 @@ a pending cpu_cap recommendation.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
@@ -19,11 +21,25 @@ from ...services.risk_service import assess_thermal_risk_and_time
 from ...services.explanation_service import build_why_payload
 from ...services.action_service import create_recommendation
 from ...services.audit_service import record_audit
+from ...services import replay_state, replay_service
 from ...database import session_factory
 from sqlalchemy import select
 
 
 router = APIRouter(tags=["forecast"])
+
+
+@dataclass
+class _ReplayReading:
+    """Lightweight stand-in for a Reading ORM object during replay mode."""
+    site_id: str
+    ts: str
+    cpu_pct: float
+    mem_pct: float
+    cpu_temp_c: Optional[float]
+    temp_status: str
+    # Provide dummy id so pipeline code that accesses .id won't fail
+    id: int = -1
 
 
 def _get_latest_reading(site_id: str) -> Reading | None:
@@ -90,12 +106,32 @@ async def get_latest_forecast_endpoint(
     site_id: str = Query("laptop-01", description="Site/device identifier"),
 ):
     """Get the latest forecast for a device. Returns 204 if no readings exist."""
-    # Get latest reading
-    reading = _get_latest_reading(site_id)
-    if reading is None:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    in_replay = replay_state.is_replay_enabled()
 
-    # Get or compute forecast
+    if in_replay:
+        # --- REPLAY MODE ---
+        # Serve the next reading from the replay sequence without touching the DB.
+        replay_dict = replay_service.get_next_replay_reading()
+        if replay_dict is None:
+            # Replay file not loaded (should not happen if /replay endpoint used correctly)
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+        # Build a lightweight Reading-like object from the replay dict
+        reading = _ReplayReading(
+            site_id=replay_dict.get("site_id", site_id),
+            ts=replay_dict.get("ts", ""),
+            cpu_pct=float(replay_dict.get("cpu_pct", 0.0)),
+            mem_pct=float(replay_dict.get("mem_pct", 0.0)),
+            cpu_temp_c=replay_dict.get("cpu_temp_c"),
+            temp_status=replay_dict.get("temp_status", "measured"),
+        )
+    else:
+        # --- LIVE MODE ---
+        reading = _get_latest_reading(site_id)
+        if reading is None:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    # Get or compute forecast (same pipeline for both modes)
     forecast = _get_or_compute_forecast(site_id, reading)
 
     # Assess risk and time to danger
@@ -111,40 +147,44 @@ async def get_latest_forecast_endpoint(
     trust = forecast.get("trust", "low")
     why = build_why_payload(reading, forecast, limit_c, trust)
 
-    # Check for pending recommendation using deterministic selection policy
-    rec = _get_pending_recommendation(site_id)
-
-    if rec is not None:
-        # Reuse existing pending recommendation (prevents duplicate recommendations)
-        action = {
-            "id": rec["action_id"] or str(rec["rec_id"]),
-            "type": rec["action_type"],
-            "cap_pct": rec["cap_pct"],
-            "status": rec["status"],
-        }
-    elif risk in ("Elevated", "High", "elevated", "high"):
-        # Generate new pending recommendation when risk is Elevated or High
-        new_rec = create_recommendation(
-            site_id=site_id,
-            action_type="cpu_cap",
-            cap_pct=50,
-            reason=f"Temperature forecast indicates {risk} risk",
-            action_id="a-17",
-        )
-        action = {
-            "id": new_rec.action_id,
-            "type": new_rec.action_type,
-            "cap_pct": new_rec.cap_pct,
-            "status": new_rec.status,
-        }
+    if in_replay:
+        # Safety: never create recommendations or commands during replay
+        action = {"id": None, "type": "none", "cap_pct": None, "status": "none"}
     else:
-        # Risk is Normal and no recommendation pending
-        action = {
-            "id": None,
-            "type": "none",
-            "cap_pct": None,
-            "status": "none",
-        }
+        # Check for pending recommendation using deterministic selection policy
+        rec = _get_pending_recommendation(site_id)
+
+        if rec is not None:
+            # Reuse existing pending recommendation (prevents duplicate recommendations)
+            action = {
+                "id": rec["action_id"] or str(rec["rec_id"]),
+                "type": rec["action_type"],
+                "cap_pct": rec["cap_pct"],
+                "status": rec["status"],
+            }
+        elif risk in ("Elevated", "High", "elevated", "high"):
+            # Generate new pending recommendation when risk is Elevated or High
+            new_rec = create_recommendation(
+                site_id=site_id,
+                action_type="cpu_cap",
+                cap_pct=50,
+                reason=f"Temperature forecast indicates {risk} risk",
+                action_id="a-17",
+            )
+            action = {
+                "id": new_rec.action_id,
+                "type": new_rec.action_type,
+                "cap_pct": new_rec.cap_pct,
+                "status": new_rec.status,
+            }
+        else:
+            # Risk is Normal and no recommendation pending
+            action = {
+                "id": None,
+                "type": "none",
+                "cap_pct": None,
+                "status": "none",
+            }
 
     # Record forecast audit
     record_audit(
@@ -155,6 +195,7 @@ async def get_latest_forecast_endpoint(
             "horizon_15": forecast.get("15", {}).get("mid"),
             "risk": risk,
             "trust": trust,
+            "data_mode": "replay" if in_replay else "live",
         },
         outcome=None,
     )
@@ -190,4 +231,5 @@ async def get_latest_forecast_endpoint(
         trust=trust,
         why=why,
         action=action,
+        data_mode="replay" if in_replay else "live",
     )

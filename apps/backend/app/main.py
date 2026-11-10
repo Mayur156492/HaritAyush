@@ -18,6 +18,7 @@ from app.api.routes.readings_recent import router as readings_recent_router
 from app.api.routes.actions import router as actions_router
 from app.api.routes.commands import router as commands_router
 from app.api.routes.audit import router as audit_router
+from app.api.routes.replay import router as replay_router
 
 app.include_router(readings_router, prefix="/readings", tags=["telemetry"])
 app.include_router(forecast_router, prefix="/forecast", tags=["forecast"])
@@ -25,6 +26,7 @@ app.include_router(readings_recent_router, prefix="/readings/recent", tags=["tel
 app.include_router(actions_router, prefix="/actions", tags=["actions"])
 app.include_router(commands_router, prefix="/commands", tags=["commands"])
 app.include_router(audit_router, prefix="/audit", tags=["audit"])
+app.include_router(replay_router, prefix="/replay", tags=["replay"])
 
 
 @app.get("/health", tags=["system"])

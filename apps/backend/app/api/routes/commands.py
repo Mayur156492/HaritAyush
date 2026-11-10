@@ -20,6 +20,7 @@ from fastapi import APIRouter, Query
 from ...schemas import CommandPendingResponse, CommandItem
 from ...models import Command
 from ...services.command_service import get_pending_commands
+from ...services import replay_state
 
 
 router = APIRouter(tags=["commands"])
@@ -37,6 +38,11 @@ def get_pending_commands_endpoint(
     site_id: str = Query("laptop-01", description="Site/device identifier"),
 ):
     """Get pending commands for the Windows agent in envelope format."""
+    # Safety: never deliver commands when in replay mode (replay data must not
+    # trigger real CPU-cap execution on the agent).
+    if replay_state.is_replay_enabled():
+        return CommandPendingResponse(commands=[])
+
     commands = get_pending_commands(site_id=site_id, mark_as_delivered=True)
     items = []
     for c in commands:
