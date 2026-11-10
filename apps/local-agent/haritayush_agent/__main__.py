@@ -28,17 +28,34 @@ def main() -> int:
         print("HaritAyush local agent requires Windows 10/11; telemetry preview is not enabled on other platforms.", file=sys.stderr)
         return 2
     if args.check:
-        from haritayush_agent.telemetry.sensors import SensorReader, SimulatedSensorReader
+        from haritayush_agent.telemetry.sensors import (
+            SensorReader, SimulatedSensorReader, TemperatureDiscovery,
+            discover_temperature_sensors, format_temperature_sensors,
+            select_cpu_temperature_sensor,
+        )
         reader = SimulatedSensorReader if args.dev_mock else SensorReader
         if args.dev_mock:
             print("*** DEV ONLY: CPU temperature source is simulated, status=estimated; never measured. ***", file=sys.stderr)
         if args.dev_allow_estimated_cap:
             print("*** LOUD WARNING: TEST OVERRIDE ON; state-only workload, no real OS cap possible. ***", file=sys.stderr)
         reading = reader(settings.site_id).read(job_running=False, cap_pct=100)
+        discovery = (TemperatureDiscovery(reading.temperature_sensors, reading.temperature_detail)
+                     if not args.dev_mock else discover_temperature_sensors())
+        selected, selection_detail = select_cpu_temperature_sensor(discovery)
         print(f"Windows: {platform.version()}\nBackend: {settings.backend_url}\nState directory: {settings.state_dir}\n"
               f"CPU: {reading.payload['cpu_pct']}%  Memory: {reading.payload['mem_pct']}%\n"
               f"CPU temperature: {reading.payload['cpu_temp_c']} ({reading.payload['temp_status']})\n"
-              f"Unavailable sensors: {', '.join(reading.payload['unavailable'])}")
+              "Temperature sensors found:")
+        print("\n".join(format_temperature_sensors(discovery)))
+        if args.dev_mock:
+            print("Agent picked: DEV simulated temperature (estimated; not a hardware sensor)")
+        elif selected:
+            print(f"Agent picked: {selected.provider}: {selected.name} = {selected.value_c:.1f} C")
+        else:
+            print(f"Agent picked: none. {selection_detail}.")
+        print(f"Unavailable sensors: {', '.join(reading.payload['unavailable'])}\n"
+              f"Safety thresholds: action_timeout_s={settings.action_timeout_s:.1f}; "
+              f"temperature_rise_rollback_c={settings.temperature_rise_rollback_c:.1f} C")
         return 0
     agent = Agent(settings, dev_mock=args.dev_mock,
                   allow_estimated_for_tests=args.dev_allow_estimated_cap)

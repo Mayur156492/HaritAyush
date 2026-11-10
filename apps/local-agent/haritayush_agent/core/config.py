@@ -49,6 +49,7 @@ class Settings:
             cap_min_pct=_bounded_int("HARITAYUSH_CAP_MIN_PCT", 30, 1, 99),
             cap_max_pct=_bounded_int("HARITAYUSH_CAP_MAX_PCT", 80, 2, 100),
             action_timeout_s=_bounded_float("HARITAYUSH_ACTION_TIMEOUT_S", 60.0, 10.0, 3600.0),
+            temperature_rise_rollback_c=_bounded_float("HARITAYUSH_TEMP_RISE_ROLLBACK_C", 2.0, 0.1, 20.0),
             cooldown_s=_bounded_float("HARITAYUSH_COOLDOWN_S", 30.0, 0.0, 3600.0),
             settle_s=_bounded_float("HARITAYUSH_SETTLE_S", 45.0, 30.0, 60.0),
             state_dir=Path(os.environ.get("HARITAYUSH_STATE_DIR", str(cls.state_dir))).expanduser(),

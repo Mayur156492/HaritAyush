@@ -51,6 +51,8 @@ class Agent:
     def run(self) -> None:
         log.info("Starting agent for %s; backend=%s; local kill file=%s", self.settings.site_id,
                  self.settings.backend_url, self.kill_file)
+        log.info("Safety thresholds: action_timeout_s=%.1f; temperature_rise_rollback_c=%.1f C",
+                 self.settings.action_timeout_s, self.settings.temperature_rise_rollback_c)
         self.network_thread = threading.Thread(target=self._network_loop, name="HaritAyushNetwork", daemon=True)
         self.network_thread.start()
         while not self.stop_event.is_set():

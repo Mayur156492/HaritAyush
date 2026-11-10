@@ -39,6 +39,7 @@ For another backend machine, set `HARITAYUSH_BACKEND_URL` to its reachable URL. 
 | `HARITAYUSH_CAP_MIN_PCT` | `30` | 1-99; must be below max |
 | `HARITAYUSH_CAP_MAX_PCT` | `80` | 2-100; must be above min |
 | `HARITAYUSH_ACTION_TIMEOUT_S` | `60` | 10-3600 seconds |
+| `HARITAYUSH_TEMP_RISE_ROLLBACK_C` | `2.0` | 0.1-20 C; roll back if the selected CPU sensor rises by this amount |
 | `HARITAYUSH_COOLDOWN_S` | `30` | 0-3600 seconds |
 | `HARITAYUSH_SETTLE_S` | `45` | 30-60 seconds |
 | `HARITAYUSH_STATE_DIR` | `%LOCALAPPDATA%\HaritAyush\agent` | Local SQLite outbox and kill file |
@@ -46,6 +47,8 @@ For another backend machine, set `HARITAYUSH_BACKEND_URL` to its reachable URL. 
 The production backend must implement `POST /readings`, `GET /commands/pending?site_id=...`, and `POST /audit` as specified in `HaritAyush_API_Contract.md`. This repository has a DEV-only mock, but no production backend routes yet.
 
 The cap bounds are local agent settings (30-80% by default), independent of backend commands; the backend cannot widen them. Create `%LOCALAPPDATA%\HaritAyush\agent\KILL` to invoke the local kill switch.
+
+At startup, the agent prints the active action timeout and temperature-rise rollback threshold. `--check` and `preflight` list all values returned by the LHM/OHM temperature providers and identify the selected CPU sensor. GPU and other non-CPU names are never eligible. Temperature queries have a 4-second timeout, one logged timeout retry, and no cached-value fallback.
 
 ## DEV-only Mac mock
 

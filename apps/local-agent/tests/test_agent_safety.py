@@ -11,7 +11,10 @@ from unittest.mock import patch
 from haritayush_agent.core.config import Settings
 from haritayush_agent.safety.audit import AuditLog
 from haritayush_agent.safety.controller import SafetyController
-from haritayush_agent.telemetry.sensors import SensorReader, SimulatedSensorReader
+from haritayush_agent.telemetry.sensors import (
+    SensorReader, SimulatedSensorReader, TemperatureDiscovery, TemperatureSensor,
+    discover_temperature_sensors, format_temperature_sensors, select_cpu_temperature_sensor,
+)
 from haritayush_agent.workload.demo_job import DemoJob, SimulatedDemoJob
 
 
@@ -192,7 +195,8 @@ class SafetyTests(unittest.TestCase):
 
 class TelemetryTests(unittest.TestCase):
     def test_reading_has_exact_contract_fields_and_null_unavailable_temp(self):
-        with patch("haritayush_agent.telemetry.sensors._read_cpu_temperature", return_value=None):
+        with patch("haritayush_agent.telemetry.sensors.discover_temperature_sensors",
+                   return_value=TemperatureDiscovery((), "no sensors")):
             payload = SensorReader().read(job_running=False, cap_pct=100).payload
         self.assertEqual(set(payload), {"site_id", "ts", "cpu_pct", "mem_pct", "cpu_temp_c", "temp_status", "unavailable", "demo_job"})
         self.assertTrue(payload["ts"].endswith("Z"))
@@ -200,6 +204,49 @@ class TelemetryTests(unittest.TestCase):
         self.assertIsNone(payload["cpu_temp_c"])
         self.assertEqual(set(payload["unavailable"]), {"gpu_temp", "fan_rpm", "inlet_temp", "humidity", "power_w", "cpu_temp"})
         self.assertEqual(payload["demo_job"], {"running": False, "cap_pct": 100})
+
+    def test_temperature_sensor_match_is_cpu_only_and_flexible(self):
+        discovery = TemperatureDiscovery((
+            TemperatureSensor("root/LibreHardwareMonitor", "GPU Core #1", 91.0, "91"),
+            TemperatureSensor("root/LibreHardwareMonitor", "CPU Core #2", 74.0, "74"),
+            TemperatureSensor("root/OpenHardwareMonitor", "Tctl", 81.0, "81"),
+            TemperatureSensor("root/OpenHardwareMonitor", "System", 55.0, "55"),
+        ), "queried")
+        selected, reason = select_cpu_temperature_sensor(discovery)
+        self.assertEqual(selected.name, "Tctl")  # hottest readable CPU sensor
+        self.assertIn("hottest", reason)
+        listed = "\n".join(format_temperature_sensors(discovery))
+        self.assertIn("GPU Core #1 = 91.0 C", listed)
+        self.assertIn("CPU Core #2 = 74.0 C", listed)
+
+    def test_sensor_timeout_retries_once_at_four_seconds_and_logs(self):
+        import json
+        import subprocess
+        good = subprocess.CompletedProcess([], 0, json.dumps({"sensors": [
+            {"provider": "root/LibreHardwareMonitor", "name": "CPU Package", "value": "68.5"}
+        ], "errors": []}), "")
+        with patch("haritayush_agent.telemetry.sensors.platform.system", return_value="Windows"), \
+             patch("haritayush_agent.telemetry.sensors.subprocess.run",
+                   side_effect=[subprocess.TimeoutExpired("powershell", 4), good]) as run, \
+             self.assertLogs("haritayush_agent.telemetry.sensors", level="WARNING") as logs:
+            discovery = discover_temperature_sensors()
+        self.assertEqual(len(discovery.sensors), 1)
+        self.assertEqual(len(run.call_args_list), 2)
+        self.assertTrue(all(call.kwargs["timeout"] == 4.0 for call in run.call_args_list))
+        self.assertIn("timed out", logs.output[0])
+
+    def test_lost_sensor_does_not_reuse_previous_temperature(self):
+        good = TemperatureDiscovery((
+            TemperatureSensor("root/LibreHardwareMonitor", "CPU Package", 70.0, "70"),
+        ), "queried")
+        with patch("haritayush_agent.telemetry.sensors.discover_temperature_sensors",
+                   side_effect=[good, TemperatureDiscovery((), "provider unavailable")]):
+            reader = SensorReader()
+            first = reader.read(job_running=False, cap_pct=100).payload
+            second = reader.read(job_running=False, cap_pct=100).payload
+        self.assertEqual(first["cpu_temp_c"], 70.0)
+        self.assertIsNone(second["cpu_temp_c"])
+        self.assertEqual(second["temp_status"], "unavailable")
 
     def test_dev_temperature_is_estimated_and_never_measured(self):
         payload = SimulatedSensorReader().read(job_running=True, cap_pct=100).payload
@@ -210,10 +257,14 @@ class TelemetryTests(unittest.TestCase):
     def test_site_and_cap_range_are_settings(self):
         with patch.dict(os.environ, {"HARITAYUSH_SITE_ID": "test-site",
                                      "HARITAYUSH_CAP_MIN_PCT": "35",
-                                     "HARITAYUSH_CAP_MAX_PCT": "75"}):
+                                     "HARITAYUSH_CAP_MAX_PCT": "75",
+                                     "HARITAYUSH_ACTION_TIMEOUT_S": "120",
+                                     "HARITAYUSH_TEMP_RISE_ROLLBACK_C": "3.5"}):
             settings = Settings.from_env()
         self.assertEqual(settings.site_id, "test-site")
         self.assertEqual((settings.cap_min_pct, settings.cap_max_pct), (35, 75))
+        self.assertEqual(settings.action_timeout_s, 120)
+        self.assertEqual(settings.temperature_rise_rollback_c, 3.5)
         self.assertEqual(Settings().settle_s, 45)
 
     def test_test_override_cannot_construct_real_windows_job(self):

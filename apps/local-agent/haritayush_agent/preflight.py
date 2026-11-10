@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ctypes
-import os
 import platform
 import subprocess
 import sys
@@ -15,7 +14,7 @@ from typing import Callable
 
 from haritayush_agent.communication.client import BackendClient
 from haritayush_agent.core.config import Settings
-from haritayush_agent.telemetry.sensors import SensorReader
+from haritayush_agent.telemetry.sensors import SensorReader, format_temperature_sensors
 from haritayush_agent.workload.demo_job import WindowsJob
 
 
@@ -23,39 +22,6 @@ def _is_administrator() -> bool:
     if platform.system() != "Windows":
         return False
     return bool(ctypes.windll.shell32.IsUserAnAdmin())
-
-
-def _hardware_temperature() -> tuple[str, float] | None:
-    """Query only actual LHM/OHM WMI CPU temperature sensors."""
-    if platform.system() != "Windows":
-        return None
-    script = r"""
-$ErrorActionPreference = 'Stop'
-foreach ($ns in @('root/LibreHardwareMonitor', 'root/OpenHardwareMonitor')) {
-  try {
-    $s = Get-CimInstance -Namespace $ns -ClassName Sensor -Filter "SensorType='Temperature'" |
-      Where-Object { $_.Name -match 'CPU Package|CPU Die|CPU CCD.*Tdie|Core Max|Core \(Tctl/Tdie\)' } |
-      Select-Object -First 1
-    if ($null -ne $s) { Write-Output ("{0}|{1}" -f $ns, $s.Value); exit 0 }
-  } catch { }
-}
-exit 1
-"""
-    try:
-        result = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-            capture_output=True, text=True, timeout=4, check=False,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-        provider, separator, raw_value = result.stdout.strip().partition("|")
-        if result.returncode != 0 or not separator:
-            return None
-        value = float(raw_value)
-        if not 0 <= value <= 120:
-            return None
-        return provider, value
-    except (OSError, subprocess.TimeoutExpired, ValueError):
-        return None
 
 
 def _check_job_object() -> str:
@@ -132,12 +98,19 @@ def run_preflight(settings: Settings) -> int:
 
     def check_temperature() -> str:
         nonlocal reading
-        source = _hardware_temperature()
-        reading = sensor_reader.read(job_running=False, cap_pct=100).payload
-        if source is None or reading["temp_status"] != "measured" or reading["cpu_temp_c"] is None:
-            raise RuntimeError("no readable real CPU temperature sensor found via LibreHardwareMonitor/OpenHardwareMonitor")
-        provider, value = source
-        return f"{provider} reachable; CPU temperature {value:.1f} C (measured)"
+        sample = sensor_reader.read(job_running=False, cap_pct=100)
+        reading = sample.payload
+        print("  Temperature sensors found:")
+        from haritayush_agent.telemetry.sensors import TemperatureDiscovery, select_cpu_temperature_sensor
+        inventory = TemperatureDiscovery(sample.temperature_sensors, sample.temperature_detail)
+        for line in format_temperature_sensors(inventory):
+            print(line)
+        selected, explanation = select_cpu_temperature_sensor(inventory)
+        if selected is None or reading["temp_status"] != "measured" or reading["cpu_temp_c"] is None:
+            print(f"  Agent picked: none. {explanation}.")
+            raise RuntimeError(explanation)
+        print(f"  Agent picked: {selected.provider}: {selected.name} = {selected.value_c:.1f} C")
+        return f"{selected.provider} reachable; selected {selected.name} at {selected.value_c:.1f} C (measured)"
 
     outcomes.append(_report(
         "2. Hardware monitor and real CPU temperature", check_temperature,
