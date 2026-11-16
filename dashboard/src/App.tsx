@@ -108,7 +108,7 @@ export default function App() {
 
   return <main className="dashboard">
     <header className="topbar">
-      <div className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><div><strong>HaritAyush</strong><small>Thermal watch</small></div></div>
+      <div className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><div><strong>THERMOS</strong><small>Predict. Reason. Protect.</small></div></div>
       <div className="site"><span>SITE</span><b>laptop-01</b></div>
       <div className="top-state">{mockMode && <span className="data-badge badge-mock">MOCK DATA</span>}<span className={`data-badge ${sourceClass}`}>{dataLabel}</span><span className={`connection ${anyError ? 'offline' : ''}`}><i />{anyError ? 'Offline' : 'Connected'} <span>· {sourceAge}</span></span></div>
       <button className="quiet-button theme-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</button>

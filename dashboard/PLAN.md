@@ -1,7 +1,7 @@
-# HaritAyush dashboard plan
+# THERMOS dashboard plan
 
 ```text
-┌ HaritAyush · laptop-01 · DATA SOURCE · connection age ────────────────┐
+┌ THERMOS · laptop-01 · DATA SOURCE · connection age ──────────────────┐
 │ Risk + current temperature             │ Forecast chart              │
 │ Risk shape, sentence, trust             │ History, forecast band,      │
 │                                         │ limit and elevated lines     │

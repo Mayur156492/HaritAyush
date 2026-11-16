@@ -8,12 +8,12 @@
 export default function App() {
   return (
     <main className="app-shell">
-      <h1 className="app-shell__title">HaritAyush</h1>
+      <h1 className="app-shell__title">THERMOS</h1>
       <p className="app-shell__subtitle">
-        Distributed Thermal Intelligence and Resource Optimisation Platform
+        Thermal Heuristic Engine for Reasoning, Monitoring, Optimisation and Safety
       </p>
       <p className="app-shell__notice">
-        Repository scaffold only. Telemetry views, forecasting panels, the 3D
+        Implementation: HaritAyush. Repository scaffold only. Telemetry views, forecasting panels, the 3D
         command centre and alerts are not implemented yet.
       </p>
     </main>

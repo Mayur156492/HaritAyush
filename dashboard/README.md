@@ -1,6 +1,6 @@
-# HaritAyush dashboard
+# THERMOS dashboard
 
-A small React dashboard for the HaritAyush thermal warning loop. It shows the latest risk and readings, a forecast chart, backend explanations and checks, an operator decision, action progress, before/after values and the audit timeline. The dashboard does not send system-wide controls; its commands are limited to the demo job and replay mode defined by the API.
+THERMOS (implemented in the HaritAyush repository) is a thermal warning dashboard. Tagline: **Predict. Reason. Protect.** It shows the latest risk and readings, a forecast chart, backend explanations and checks, an operator decision, action progress, before/after values and the audit timeline. The dashboard does not send system-wide controls; its commands are limited to the demo job and replay mode defined by the API.
 
 ## Run locally with mock data
 
